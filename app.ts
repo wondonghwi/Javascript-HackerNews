@@ -3,34 +3,34 @@ const ajax: XMLHttpRequest = new XMLHttpRequest();
 const NEWS_URL = 'https://api.hnpwa.com/v0/news/1.json';
 const CONTENT_URL = 'https://api.hnpwa.com/v0/item/@id.json';
 
-type News = {
-  id: number;
-  time_ago: string;
-  title: string;
-  url: string;
-  user: string;
-  content: string;
-};
-
-type NewsFeed = News & {
-  comments_count: number;
-  points: number;
-  read?: boolean;
-};
-
-type NewsDetail = News & {
-  comments: NewsComment[];
-};
-
-type NewsComment = News & {
-  comments: NewsComment[];
-  level: number;
-};
-
-type Store = {
+interface Store {
   currentPage: number;
   feeds: NewsFeed[];
-};
+}
+
+interface News {
+  readonly id: number; //타입스크립트 값 못바꾸게 하는 지시어!
+  readonly time_ago: string;
+  readonly title: string;
+  readonly url: string;
+  readonly user: string;
+  readonly content: string;
+}
+
+interface NewsFeed extends News {
+  readonly comments_count: number;
+  readonly points: number;
+  read?: boolean;
+}
+
+interface NewsDetail extends News {
+  readonly comments: NewsComment[];
+}
+
+interface NewsComment extends News {
+  readonly comments: NewsComment[];
+  readonly level: number;
+}
 
 const store: Store = {
   currentPage: 1,
