@@ -6,11 +6,27 @@ const store = {
     currentPage: 1,
     feeds: []
 };
-const getData = (url)=>{
-    ajax.open('GET', url, false);
-    ajax.send();
-    return JSON.parse(ajax.response);
-};
+class Api {
+    constructor(url){
+        this.url = url;
+        this.ajax = new XMLHttpRequest();
+    }
+    getRequest() {
+        this.ajax.open('GET', this.url, false);
+        this.ajax.send();
+        return JSON.parse(this.ajax.response);
+    }
+}
+class NewsFeedApi extends Api {
+    getData() {
+        return this.getRequest();
+    }
+}
+class NewsDetailApi extends Api {
+    getData() {
+        return this.getRequest();
+    }
+}
 const makeFeeds = (feeds)=>{
     for(let i = 0; i < feeds.length; i++)feeds[i].read = false;
     return feeds;
@@ -20,6 +36,7 @@ const updateView = (html)=>{
     else console.error('container not found');
 };
 function newsFeed1() {
+    const api = new NewsFeedApi(NEWS_URL);
     let newsFeed = store.feeds;
     const newsList = [];
     let template = `
@@ -46,7 +63,7 @@ function newsFeed1() {
       </div>
     </div>
   `;
-    if (newsFeed.length === 0) newsFeed = store.feeds = makeFeeds(getData(NEWS_URL));
+    if (newsFeed.length === 0) newsFeed = store.feeds = makeFeeds(api.getData());
     for(let i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++)// @ts-ignore
     newsList.push(`
       <div class="p-6 ${newsFeed[i].read ? 'bg-red-500' : 'bg-white'} mt-6 rounded-lg shadow-md transition-colors duration-500 hover:bg-green-100">
@@ -74,7 +91,8 @@ function newsFeed1() {
 }
 function newsDetail() {
     const id = location.hash.substr(7);
-    const newsContent = getData(CONTENT_URL.replace('@id', id));
+    const api = new NewsDetailApi(CONTENT_URL.replace('@id', id));
+    const newsContent = api.getData();
     let template = `
     <div class="bg-gray-600 min-h-screen pb-8">
       <div class="bg-white text-xl">
