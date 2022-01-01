@@ -1,22 +1,67 @@
-const container = document.getElementById('root');
-const ajax = new XMLHttpRequest();
+const container: HTMLElement | null = document.getElementById('root');
+const ajax: XMLHttpRequest = new XMLHttpRequest();
 const NEWS_URL = 'https://api.hnpwa.com/v0/news/1.json';
 const CONTENT_URL = 'https://api.hnpwa.com/v0/item/@id.json';
-const store = {
+
+type News = {
+  id: number;
+  time_ago: string;
+  title: string;
+  url: string;
+  user: string;
+  content: string;
+};
+
+type NewsFeed = News & {
+  comments_count: number;
+  points: number;
+  read?: boolean;
+};
+
+type NewsDetail = News & {
+  comments: NewsComment[];
+};
+
+type NewsComment = News & {
+  comments: NewsComment[];
+  level: number;
+};
+
+type Store = {
+  currentPage: number;
+  feeds: NewsFeed[];
+};
+
+const store: Store = {
   currentPage: 1,
   feeds: [],
 };
 
-function getData(url) {
+const getData = <AjaxResponse>(url: string): AjaxResponse => {
   ajax.open('GET', url, false);
   ajax.send();
 
   return JSON.parse(ajax.response);
-}
+};
 
-function newsFeed() {
+const makeFeeds = (feeds: NewsFeed[]): NewsFeed[] => {
+  for (let i = 0; i < feeds.length; i++) {
+    feeds[i].read = false;
+  }
+  return feeds;
+};
+
+const updateView = (html: string): void => {
+  if (container) {
+    container.innerHTML = html;
+  } else {
+    console.error('container not found');
+  }
+};
+
+function newsFeed(): void {
   let newsFeed = store.feeds;
-  const newsList = [];
+  const newsList: NewsFeed[] = [];
   let template = `
     <div class="bg-gray-600 min-h-screen">
       <div class="bg-white text-xl">
@@ -43,10 +88,11 @@ function newsFeed() {
   `;
 
   if (newsFeed.length === 0) {
-    newsFeed = store.feeds = getData(NEWS_URL);
+    newsFeed = store.feeds = makeFeeds(getData<NewsFeed[]>(NEWS_URL));
   }
 
   for (let i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
+    // @ts-ignore
     newsList.push(`
       <div class="p-6 ${
         newsFeed[i].read ? 'bg-red-500' : 'bg-white'
@@ -71,15 +117,15 @@ function newsFeed() {
   }
 
   template = template.replace('{{__news_feed__}}', newsList.join(''));
-  template = template.replace('{{__prev_page__}}', store.currentPage > 1 ? store.currentPage - 1 : 1);
-  template = template.replace('{{__next_page__}}', store.currentPage + 1);
+  template = template.replace('{{__prev_page__}}', String(store.currentPage > 1 ? store.currentPage - 1 : 1));
+  template = template.replace('{{__next_page__}}', String(store.currentPage + 1));
 
-  container.innerHTML = template;
+  updateView(template);
 }
 
-function newsDetail() {
+function newsDetail(): void {
   const id = location.hash.substr(7);
-  const newsContent = getData(CONTENT_URL.replace('@id', id));
+  const newsContent = getData<NewsDetail>(CONTENT_URL.replace('@id', id));
   let template = `
     <div class="bg-gray-600 min-h-screen pb-8">
       <div class="bg-white text-xl">
@@ -116,35 +162,38 @@ function newsDetail() {
     }
   }
 
-  function makeComment(comments, called = 0) {
-    const commentString = [];
+  updateView(template.replace('{{__comments__}}', makeComment(newsContent.comments)));
+}
 
-    for (let i = 0; i < comments.length; i++) {
-      commentString.push(`
-        <div style="padding-left: ${called * 40}px;" class="mt-4">
+function makeComment(comments: NewsComment[]): string {
+  const commentString = [];
+
+  for (let i = 0; i < comments.length; i++) {
+    const comment: NewsComment = comments[i];
+    commentString.push(`
+        <div style="padding-left: {${comment}.level * 40}px;" class="mt-4">
           <div class="text-gray-400">
             <i class="fa fa-sort-up mr-2"></i>
-            <strong>${comments[i].user}</strong> ${comments[i].time_ago}
+            <strong>{${comment}.user}</strong> {${comments[i]}.time_ago}
           </div>
-          <p class="text-gray-700">${comments[i].content}</p>
+          <p class="text-gray-700">{${comment}.content}</p>
         </div>      
       `);
 
-      if (comments[i].comments.length > 0) {
-        commentString.push(makeComment(comments[i].comments, called + 1));
-      }
+    if (comment.comments.length > 0) {
+      commentString.push(makeComment(comment.comments));
     }
-
-    return commentString.join('');
   }
 
-  container.innerHTML = template.replace('{{__comments__}}', makeComment(newsContent.comments));
+  return commentString.join('');
 }
 
-function router() {
+function router(): void {
   const routePath = location.hash;
 
-  if (routePath.indexOf('#/page/') >= 0) {
+  if (routePath === '') {
+    newsFeed();
+  } else if (routePath.indexOf('#/page/') >= 0) {
     store.currentPage = Number(routePath.substr(7));
     newsFeed();
   } else {
