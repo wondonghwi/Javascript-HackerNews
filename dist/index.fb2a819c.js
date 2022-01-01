@@ -6,27 +6,37 @@ const store = {
     currentPage: 1,
     feeds: []
 };
+function applyApiMixins(targetClass, baseClasses) {
+    baseClasses.forEach((baseClass)=>{
+        Object.getOwnPropertyNames(baseClass.prototype).forEach((name)=>{
+            const descriptor = Object.getOwnPropertyDescriptor(baseClass.prototype, name);
+            if (descriptor) Object.defineProperty(targetClass.prototype, name, descriptor);
+        });
+    });
+}
 class Api {
-    constructor(url){
-        this.url = url;
-        this.ajax = new XMLHttpRequest();
-    }
-    getRequest() {
-        this.ajax.open('GET', this.url, false);
-        this.ajax.send();
-        return JSON.parse(this.ajax.response);
+    getRequest(url) {
+        ajax.open('GET', url, false);
+        ajax.send();
+        return JSON.parse(ajax.response);
     }
 }
-class NewsFeedApi extends Api {
+class NewsFeedApi {
     getData() {
-        return this.getRequest();
+        return this.getRequest(NEWS_URL);
     }
 }
-class NewsDetailApi extends Api {
-    getData() {
-        return this.getRequest();
+class NewsDetailApi {
+    getData(id1) {
+        return this.getRequest(CONTENT_URL.replace('@id', id1));
     }
 }
+applyApiMixins(NewsFeedApi, [
+    Api
+]);
+applyApiMixins(NewsDetailApi, [
+    Api
+]);
 const makeFeeds = (feeds)=>{
     for(let i = 0; i < feeds.length; i++)feeds[i].read = false;
     return feeds;
@@ -36,7 +46,7 @@ const updateView = (html)=>{
     else console.error('container not found');
 };
 function newsFeed1() {
-    const api = new NewsFeedApi(NEWS_URL);
+    const api = new NewsFeedApi();
     let newsFeed = store.feeds;
     const newsList = [];
     let template = `
@@ -89,10 +99,10 @@ function newsFeed1() {
     template = template.replace('{{__next_page__}}', String(store.currentPage + 1));
     updateView(template);
 }
-function newsDetail() {
+function newsDetail1() {
     const id = location.hash.substr(7);
-    const api = new NewsDetailApi(CONTENT_URL.replace('@id', id));
-    const newsContent = api.getData();
+    const api = new NewsDetailApi();
+    const newsDetail = api.getData(id);
     let template = `
     <div class="bg-gray-600 min-h-screen pb-8">
       <div class="bg-white text-xl">
@@ -111,9 +121,9 @@ function newsDetail() {
       </div>
 
       <div class="h-full border rounded-xl bg-white m-6 p-4 ">
-        <h2>${newsContent.title}</h2>
+        <h2>${newsDetail.title}</h2>
         <div class="text-gray-400 h-20">
-          ${newsContent.content}
+          ${newsDetail.content}
         </div>
 
         {{__comments__}}
@@ -121,25 +131,25 @@ function newsDetail() {
       </div>
     </div>
   `;
-    for(let i = 0; i < store.feeds.length; i++)if (store.feeds[i].id === parseInt(id)) {
+    for(let i = 0; i < store.feeds.length; i++)if (store.feeds[i].id === Number(id)) {
         store.feeds[i].read = true;
         break;
     }
-    updateView(template.replace('{{__comments__}}', makeComment(newsContent.comments)));
+    updateView(template.replace('{{__comments__}}', makeComment(newsDetail.comments)));
 }
 function makeComment(comments) {
     const commentString = [];
     for(let i = 0; i < comments.length; i++){
         const comment = comments[i];
         commentString.push(`
-        <div style="padding-left: {${comment}.level * 40}px;" class="mt-4">
-          <div class="text-gray-400">
-            <i class="fa fa-sort-up mr-2"></i>
-            <strong>{${comment}.user}</strong> {${comments[i]}.time_ago}
-          </div>
-          <p class="text-gray-700">{${comment}.content}</p>
-        </div>      
-      `);
+      <div style="padding-left: ${comment.level * 40}px;" class="mt-4">
+        <div class="text-gray-400">
+          <i class="fa fa-sort-up mr-2"></i>
+          <strong>${comment.user}</strong> ${comment.time_ago}
+        </div>
+        <p class="text-gray-700">${comment.content}</p>
+      </div>      
+    `);
         if (comment.comments.length > 0) commentString.push(makeComment(comment.comments));
     }
     return commentString.join('');
@@ -150,7 +160,7 @@ function router() {
     else if (routePath.indexOf('#/page/') >= 0) {
         store.currentPage = Number(routePath.substr(7));
         newsFeed1();
-    } else newsDetail();
+    } else newsDetail1();
 }
 window.addEventListener('hashchange', router);
 router();

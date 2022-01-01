@@ -37,32 +37,44 @@ const store: Store = {
   feeds: [],
 };
 
+function applyApiMixins(targetClass: any, baseClasses: any[]): void {
+  baseClasses.forEach(baseClass => {
+    Object.getOwnPropertyNames(baseClass.prototype).forEach(name => {
+      const descriptor = Object.getOwnPropertyDescriptor(baseClass.prototype, name);
+
+      if (descriptor) {
+        Object.defineProperty(targetClass.prototype, name, descriptor);
+      }
+    });
+  });
+}
+
 class Api {
-  url: string;
-  ajax: XMLHttpRequest;
-  constructor(url: string) {
-    this.url = url;
-    this.ajax = new XMLHttpRequest();
-  }
-  protected getRequest<Ajaxresponse>(): Ajaxresponse {
-    this.ajax.open('GET', this.url, false);
-    this.ajax.send();
+  getRequest<Generic>(url: string): Generic {
+    ajax.open('GET', url, false);
+    ajax.send();
 
-    return JSON.parse(this.ajax.response);
+    return JSON.parse(ajax.response);
   }
 }
 
-class NewsFeedApi extends Api {
+class NewsFeedApi {
   getData(): NewsFeed[] {
-    return this.getRequest<NewsFeed[]>();
+    return this.getRequest<NewsFeed[]>(NEWS_URL);
   }
 }
 
-class NewsDetailApi extends Api {
-  getData(): NewsDetail {
-    return this.getRequest<NewsDetail>();
+class NewsDetailApi {
+  getData(id: string): NewsDetail {
+    return this.getRequest<NewsDetail>(CONTENT_URL.replace('@id', id));
   }
 }
+
+interface NewsFeedApi extends Api {}
+interface NewsDetailApi extends Api {}
+
+applyApiMixins(NewsFeedApi, [Api]);
+applyApiMixins(NewsDetailApi, [Api]);
 
 const makeFeeds = (feeds: NewsFeed[]): NewsFeed[] => {
   for (let i = 0; i < feeds.length; i++) {
@@ -80,7 +92,7 @@ const updateView = (html: string): void => {
 };
 
 function newsFeed(): void {
-  const api = new NewsFeedApi(NEWS_URL);
+  const api = new NewsFeedApi();
   let newsFeed = store.feeds;
   const newsList: NewsFeed[] = [];
   let template = `
@@ -146,8 +158,8 @@ function newsFeed(): void {
 
 function newsDetail(): void {
   const id = location.hash.substr(7);
-  const api = new NewsDetailApi(CONTENT_URL.replace('@id', id));
-  const newsContent = api.getData();
+  const api = new NewsDetailApi();
+  const newsDetail: NewsDetail = api.getData(id);
   let template = `
     <div class="bg-gray-600 min-h-screen pb-8">
       <div class="bg-white text-xl">
@@ -166,9 +178,9 @@ function newsDetail(): void {
       </div>
 
       <div class="h-full border rounded-xl bg-white m-6 p-4 ">
-        <h2>${newsContent.title}</h2>
+        <h2>${newsDetail.title}</h2>
         <div class="text-gray-400 h-20">
-          ${newsContent.content}
+          ${newsDetail.content}
         </div>
 
         {{__comments__}}
@@ -178,13 +190,13 @@ function newsDetail(): void {
   `;
 
   for (let i = 0; i < store.feeds.length; i++) {
-    if (store.feeds[i].id === parseInt(id)) {
+    if (store.feeds[i].id === Number(id)) {
       store.feeds[i].read = true;
       break;
     }
   }
 
-  updateView(template.replace('{{__comments__}}', makeComment(newsContent.comments)));
+  updateView(template.replace('{{__comments__}}', makeComment(newsDetail.comments)));
 }
 
 function makeComment(comments: NewsComment[]): string {
@@ -192,15 +204,16 @@ function makeComment(comments: NewsComment[]): string {
 
   for (let i = 0; i < comments.length; i++) {
     const comment: NewsComment = comments[i];
+
     commentString.push(`
-        <div style="padding-left: {${comment}.level * 40}px;" class="mt-4">
-          <div class="text-gray-400">
-            <i class="fa fa-sort-up mr-2"></i>
-            <strong>{${comment}.user}</strong> {${comments[i]}.time_ago}
-          </div>
-          <p class="text-gray-700">{${comment}.content}</p>
-        </div>      
-      `);
+      <div style="padding-left: ${comment.level * 40}px;" class="mt-4">
+        <div class="text-gray-400">
+          <i class="fa fa-sort-up mr-2"></i>
+          <strong>${comment.user}</strong> ${comment.time_ago}
+        </div>
+        <p class="text-gray-700">${comment.content}</p>
+      </div>      
+    `);
 
     if (comment.comments.length > 0) {
       commentString.push(makeComment(comment.comments));
