@@ -212,7 +212,7 @@ class NewsDetailView extends View {
 }
 const router = new Router();
 const newsFeedView = new NewsFeedView('root');
-const newsDetailView = new NewsDetailView('root');
+const newsDetailView = new NewsDetailView('r선oot');
 router.setDefaultPage(newsFeedView);
 router.addRoutePath('/page/', newsFeedView);
 router.addRoutePath('/show/', newsDetailView);
