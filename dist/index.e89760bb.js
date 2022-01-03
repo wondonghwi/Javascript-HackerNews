@@ -571,7 +571,6 @@ parcelHelpers.export(exports, "default", ()=>NewsDetailView
 var _view = require("../core/view");
 var _viewDefault = parcelHelpers.interopDefault(_view);
 var _api = require("../core/api");
-var _config = require("../config");
 const template = `
 <div class="bg-gray-600 min-h-screen pb-8">
   <div class="bg-white text-xl">
@@ -601,9 +600,9 @@ const template = `
 class NewsDetailView extends _viewDefault.default {
     constructor(containerId, store){
         super(containerId, template);
-        this.render = (id)=>{
-            const api = new _api.NewsDetailApi(_config.CONTENT_URL.replace('@id', id));
-            const { title , content , comments  } = api.getData();
+        this.render = async (id)=>{
+            const api = new _api.NewsDetailApi(id);
+            const { title , content , comments  } = await api.getData();
             this.store.makeRead(Number(id));
             this.setTemplateData('currentPage', this.store.currentPage.toString());
             this.setTemplateData('title', title);
@@ -631,7 +630,7 @@ class NewsDetailView extends _viewDefault.default {
     }
 }
 
-},{"../core/view":"l61Oj","../core/api":"eiLhE","../config":"bpXeT","@parcel/transformer-js/src/esmodule-helpers.js":"ZH15i"}],"l61Oj":[function(require,module,exports) {
+},{"../core/view":"l61Oj","../core/api":"eiLhE","@parcel/transformer-js/src/esmodule-helpers.js":"ZH15i"}],"l61Oj":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "default", ()=>View
@@ -668,35 +667,40 @@ class View {
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"ZH15i"}],"eiLhE":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "Api", ()=>Api
+parcelHelpers.export(exports, "default", ()=>Api
 );
 parcelHelpers.export(exports, "NewsFeedApi", ()=>NewsFeedApi
 );
 parcelHelpers.export(exports, "NewsDetailApi", ()=>NewsDetailApi
 );
+var _config = require("../config");
 class Api {
     constructor(url){
-        this.ajax = new XMLHttpRequest();
         this.url = url;
     }
-    getRequest() {
-        this.ajax.open('GET', this.url, false);
-        this.ajax.send();
-        return JSON.parse(this.ajax.response);
+    async request() {
+        const response = await fetch(this.url);
+        return await response.json();
     }
 }
 class NewsFeedApi extends Api {
-    getData() {
-        return this.getRequest();
+    constructor(){
+        super(_config.NEWS_URL);
+    }
+    async getData() {
+        return this.request();
     }
 }
 class NewsDetailApi extends Api {
-    getData() {
-        return this.getRequest();
+    constructor(id){
+        super(_config.CONTENT_URL.replace('@id', id));
+    }
+    async getData() {
+        return this.request();
     }
 }
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"ZH15i"}],"bpXeT":[function(require,module,exports) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"ZH15i","../config":"bpXeT"}],"bpXeT":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "NEWS_URL", ()=>NEWS_URL
@@ -714,7 +718,6 @@ parcelHelpers.export(exports, "default", ()=>NewsFeedView
 var _view = require("../core/view");
 var _viewDefault = parcelHelpers.interopDefault(_view);
 var _api = require("../core/api");
-var _config = require("../config");
 const template = `
 <div class="bg-gray-600 min-h-screen">
   <div class="bg-white text-xl">
@@ -742,8 +745,9 @@ const template = `
 class NewsFeedView extends _viewDefault.default {
     constructor(containerId, store){
         super(containerId, template);
-        this.render = (page = '1')=>{
+        this.render = async (page = '1')=>{
             this.store.currentPage = Number(page);
+            if (!this.store.hasFeeds) this.store.setFeeds(await this.api.getData());
             for(let i = (this.store.currentPage - 1) * 10; i < this.store.currentPage * 10; i++){
                 const { id , title , comments_count , user , points , time_ago , read  } = this.store.getFeed(i);
                 this.addHtml(`
@@ -772,12 +776,11 @@ class NewsFeedView extends _viewDefault.default {
             this.updateView();
         };
         this.store = store;
-        this.api = new _api.NewsFeedApi(_config.NEWS_URL);
-        if (!this.store.hasFeeds) this.store.setFeeds(this.api.getData());
+        this.api = new _api.NewsFeedApi();
     }
 }
 
-},{"../core/view":"l61Oj","../core/api":"eiLhE","../config":"bpXeT","@parcel/transformer-js/src/esmodule-helpers.js":"ZH15i"}],"4IKNF":[function(require,module,exports) {
+},{"../core/view":"l61Oj","../core/api":"eiLhE","@parcel/transformer-js/src/esmodule-helpers.js":"ZH15i"}],"4IKNF":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "Store", ()=>Store
